@@ -115,6 +115,24 @@ Useful URLs after startup:
 - `http://127.0.0.1:8000/docs` (interactive Swagger UI)
 - `http://127.0.0.1:8000/health`
 - `http://127.0.0.1:8000/personas`
+- `http://127.0.0.1:8000/chat-ui` (simple UI with mode selector + message input)
+
+
+
+### I thought there should be a place to choose mode and enter input
+
+Yes. This project now includes a simple browser page at:
+
+- `http://127.0.0.1:8000/chat-ui`
+
+It provides:
+
+- persona/mode dropdown
+- message input box
+- comfort/length controls
+- direct send button that calls `POST /chat`
+
+Beginner note: this UI is intentionally small and uses plain HTML + JavaScript so you can learn the request flow before moving to React/Vue.
 
 ## Connect to your local Ollama (step-by-step)
 
@@ -260,6 +278,39 @@ curl http://127.0.0.1:8000/personas
 
 
 
+
+
+
+### Troubleshooting: PowerShell says `-X` / `-H` / `-d` parameter not found
+
+This happens because PowerShell maps `curl` to `Invoke-WebRequest`, which does not use GNU curl flags like `-X`, `-H`, and `-d` the same way.
+
+Use one of these PowerShell-safe commands:
+
+```powershell
+# Option 1: real curl executable
+curl.exe -X POST http://127.0.0.1:8000/chat `
+  -H "Content-Type: application/json" `
+  -d '{"user_id":"demo-user","persona":"friend_family","companion_gender":"neutral","comfort_level":5,"response_length":"medium","character_seed":"speak softly and reassure me before giving advice","message":"I feel lonely tonight.","model":"llama3.1:8b"}'
+```
+
+```powershell
+# Option 2: PowerShell native API call (recommended)
+$body = @{
+  user_id = "demo-user"
+  persona = "friend_family"
+  companion_gender = "neutral"
+  comfort_level = 5
+  response_length = "medium"
+  character_seed = "speak softly and reassure me before giving advice"
+  message = "I feel lonely tonight."
+  model = "llama3.1:8b"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method POST -Uri "http://127.0.0.1:8000/chat" -ContentType "application/json" -Body $body
+```
+
+Beginner note: this is a shell command syntax difference, not a FastAPI backend bug.
 
 ### Troubleshooting: PowerShell `curl` warning (this is usually NOT an Ollama error)
 

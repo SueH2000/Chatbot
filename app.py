@@ -6,6 +6,7 @@ from typing import Dict, List, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Companion Chatbot API", version="0.1.0")
@@ -72,6 +73,133 @@ CHARACTER_CARDS: Dict[str, dict] = {
     },
 }
 
+
+
+CHAT_UI_HTML = """
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Companion Chatbot UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 820px; margin: 24px auto; padding: 0 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { font-weight: 600; font-size: 14px; }
+    input, select, textarea, button { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
+    textarea { min-height: 100px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-top: 12px; }
+    .result { white-space: pre-wrap; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <h2>Companion Chatbot (Beginner UI)</h2>
+  <p>Choose a mode, enter your message, then click <b>Send</b>.</p>
+
+  <div class="grid">
+    <div>
+      <label>Persona / Mode</label>
+      <select id="persona"></select>
+    </div>
+    <div>
+      <label>Companion Gender</label>
+      <select id="companion_gender">
+        <option value="neutral">neutral</option>
+        <option value="feminine">feminine</option>
+        <option value="masculine">masculine</option>
+      </select>
+    </div>
+    <div>
+      <label>Comfort Level (1-5)</label>
+      <input id="comfort_level" type="number" min="1" max="5" value="4" />
+    </div>
+    <div>
+      <label>Response Length</label>
+      <select id="response_length">
+        <option value="short">short</option>
+        <option value="medium" selected>medium</option>
+        <option value="long">long</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>User ID</label>
+    <input id="user_id" value="demo-user" />
+
+    <label>Model</label>
+    <input id="model" value="llama3.1:8b" />
+
+    <label>Character Seed (optional)</label>
+    <input id="character_seed" placeholder="speak softly and reassure me" />
+
+    <label>Your Message</label>
+    <textarea id="message" placeholder="Type how you feel..."></textarea>
+
+    <button id="send_btn">Send</button>
+  </div>
+
+  <div class="card result" id="result">Waiting for your message...</div>
+
+<script>
+async function loadPersonas() {
+  const res = await fetch('/personas');
+  const data = await res.json();
+  const select = document.getElementById('persona');
+  data.personas.forEach((p) => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    select.appendChild(opt);
+  });
+}
+
+async function sendChat() {
+  const payload = {
+    user_id: document.getElementById('user_id').value,
+    persona: document.getElementById('persona').value,
+    companion_gender: document.getElementById('companion_gender').value,
+    comfort_level: Number(document.getElementById('comfort_level').value),
+    response_length: document.getElementById('response_length').value,
+    character_seed: document.getElementById('character_seed').value,
+    message: document.getElementById('message').value,
+    model: document.getElementById('model').value,
+  };
+
+  const result = document.getElementById('result');
+  result.textContent = 'Loading...';
+
+  const res = await fetch('/chat', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    result.textContent = 'Error: ' + JSON.stringify(data, null, 2);
+    return;
+  }
+
+  result.textContent =
+    'Reply:
+' + data.reply + '
+
+' +
+    'Follow-up question:
+' + data.follow_up_question + '
+
+' +
+    'Safety note:
+' + (data.safety_note || '(none)');
+}
+
+document.getElementById('send_btn').addEventListener('click', sendChat);
+loadPersonas();
+</script>
+</body>
+</html>
+"""
 
 class ChatRequest(BaseModel):
     user_id: str = Field(..., description="Unique user id for memory separation")
@@ -316,6 +444,7 @@ async def home() -> dict:
         "docs": "/docs",
         "health": "/health",
         "personas": "/personas",
+        "chat_ui": "/chat-ui",
     }
 
 
@@ -324,6 +453,13 @@ async def favicon() -> dict:
     """Return empty favicon response to avoid noisy browser 404 logs."""
 
     return {"ok": True}
+
+
+@app.get("/chat-ui", response_class=HTMLResponse)
+async def chat_ui() -> str:
+    """Simple browser UI so users can choose mode and type input directly."""
+
+    return CHAT_UI_HTML
 
 
 @app.get("/health")

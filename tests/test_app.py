@@ -22,6 +22,7 @@ class SourceStructureTests(unittest.TestCase):
     def test_endpoints_are_declared(self) -> None:
         self.assertIn('@app.get("/")', self.src)
         self.assertIn('@app.get("/favicon.ico")', self.src)
+        self.assertIn('@app.get("/chat-ui"', self.src)
         self.assertIn('@app.get("/personas")', self.src)
         self.assertIn('@app.get("/characters")', self.src)
         self.assertIn('@app.post("/chat"', self.src)
@@ -29,6 +30,10 @@ class SourceStructureTests(unittest.TestCase):
     def test_system_prompt_builder_uses_controls(self) -> None:
         self.assertIn('build_response_rules(comfort_level, response_length)', self.src)
         self.assertIn('Tone tags:', self.src)
+
+    def test_chat_ui_template_exists(self) -> None:
+        self.assertIn('CHAT_UI_HTML', self.src)
+        self.assertIn('Choose a mode, enter your message', self.src)
 
 
 if __name__ == '__main__':
