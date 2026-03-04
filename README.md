@@ -54,8 +54,67 @@ pip install -r requirements.txt
 3. Run the app:
 
 ```bash
-uvicorn app:app --reload --port 8000
+python -m uvicorn app:app --reload --port 8000
 ```
+
+
+
+### Troubleshooting: `uvicorn: command not found`
+
+If you see:
+
+```text
+bash: uvicorn: command not found
+```
+
+it usually means your virtual environment is not activated, or dependencies were installed in another Python environment.
+
+1. Create and activate virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+2. Install dependencies inside the activated environment:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Run with module mode (more reliable than plain `uvicorn` in PATH issues):
+
+```bash
+python -m uvicorn app:app --reload --port 8000
+```
+
+4. Verify executable path:
+
+```bash
+which python
+which pip
+python -m pip show uvicorn
+```
+
+Beginner note: `python -m uvicorn ...` guarantees you use uvicorn from the same Python interpreter you are currently running.
+
+
+
+### Why you saw `GET /` 404 and `GET /favicon.ico` 404
+
+Your server was actually running correctly. The 404 logs happened because browser default requests hit:
+
+- `/` (home page)
+- `/favicon.ico` (tab icon)
+
+This project now includes both routes, so these browser checks no longer show 404 noise.
+
+Useful URLs after startup:
+
+- `http://127.0.0.1:8000/` (API landing info)
+- `http://127.0.0.1:8000/docs` (interactive Swagger UI)
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/personas`
 
 ## Connect to your local Ollama (step-by-step)
 
@@ -198,6 +257,87 @@ curl http://127.0.0.1:8000/personas
 ```
 
 
+
+
+
+
+### Troubleshooting: PowerShell `curl` warning (this is usually NOT an Ollama error)
+
+In Windows PowerShell, `curl` is often an alias of `Invoke-WebRequest`, so you may see a script/security parsing warning.
+
+If your output still shows:
+
+- `StatusCode : 200`
+- and JSON content like `{"models": [...]}`
+
+then Ollama is already working correctly.
+
+Use one of these safer commands to avoid the warning:
+
+```powershell
+# Option 1: call real curl executable
+curl.exe http://127.0.0.1:11434/api/tags
+
+# Option 2: use PowerShell REST cmdlet (best for JSON)
+Invoke-RestMethod http://127.0.0.1:11434/api/tags
+```
+
+If you still prefer `Invoke-WebRequest`, add `-UseBasicParsing`:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:11434/api/tags -UseBasicParsing
+```
+
+Beginner note: this warning is from the shell command wrapper behavior, not from your FastAPI app code.
+
+### Troubleshooting: `ollama serve` says port 11434 is already in use (Windows)
+
+If you see:
+
+```text
+Error: listen tcp 127.0.0.1:11434: bind: Only one usage of each socket address ...
+```
+
+it usually means Ollama is **already running** in background, or another process is using that port.
+
+1. Check which process is using port `11434`:
+
+```powershell
+netstat -ano | findstr :11434
+```
+
+2. If the PID belongs to `ollama.exe`, you usually do **not** need another `ollama serve`.
+   Just test directly:
+
+```powershell
+curl http://127.0.0.1:11434/api/tags
+```
+
+3. If it is a stuck/old process, stop it:
+
+```powershell
+taskkill /PID <PID_NUMBER> /F
+```
+
+4. Start Ollama again:
+
+```powershell
+ollama serve
+```
+
+5. Or run on another port and point app to that port:
+
+```powershell
+$env:OLLAMA_HOST = "127.0.0.1:11435"
+ollama serve
+
+# In another terminal (PowerShell)
+$env:OLLAMA_BASE_URL = "http://127.0.0.1:11435"
+python -m uvicorn app:app --reload --port 8000
+```
+
+Beginner note: socket/port errors are usually environment/runtime conflicts, not Python syntax problems.
+
 ## Beginner Notes (Why code is structured this way)
 
 - We keep logic in small functions (`build_system_prompt`, `compose_messages`, `call_ollama`) so each part is easy to test and change.
@@ -206,6 +346,18 @@ curl http://127.0.0.1:8000/personas
 - We read `OLLAMA_BASE_URL` from environment variables, so beginners can move from local laptop to server without rewriting Python code.
 - We pass `companion_gender` into the system prompt so style is configurable at request time without copying endpoint code.
 - We use character cards + comfort/length controls so persona quality is more stable than one hardcoded prompt sentence.
+
+
+
+## Tests
+
+Run this to execute automated checks:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+Beginner note: these tests verify persona metadata, character card exposure, response rule generation, and pet-style post-processing without needing a live Ollama server.
 
 ## Important Safety Reminder
 

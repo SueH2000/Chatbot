@@ -306,6 +306,26 @@ def extract_follow_up(reply: str) -> str:
     return "What feels most important for you to talk about next?"
 
 
+@app.get("/")
+async def home() -> dict:
+    """Simple landing route so browser visits do not return 404."""
+
+    return {
+        "name": "Companion Chatbot API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/health",
+        "personas": "/personas",
+    }
+
+
+@app.get("/favicon.ico")
+async def favicon() -> dict:
+    """Return empty favicon response to avoid noisy browser 404 logs."""
+
+    return {"ok": True}
+
+
 @app.get("/health")
 async def health() -> dict:
     return {"ok": True}
