@@ -21,6 +21,7 @@ class SourceStructureTests(unittest.TestCase):
 
     def test_endpoints_are_declared(self) -> None:
         self.assertIn('@app.get("/")', self.src)
+        self.assertIn('RedirectResponse(url="/chat-ui"', self.src)
         self.assertIn('@app.get("/favicon.ico")', self.src)
         self.assertIn('@app.get("/chat-ui"', self.src)
         self.assertIn('@app.get("/personas")', self.src)
