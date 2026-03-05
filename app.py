@@ -6,7 +6,7 @@ from typing import Dict, List, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Companion Chatbot API", version="0.1.0")
@@ -435,17 +435,10 @@ def extract_follow_up(reply: str) -> str:
 
 
 @app.get("/")
-async def home() -> dict:
-    """Simple landing route so browser visits do not return 404."""
+async def home() -> RedirectResponse:
+    """Redirect root to chat UI so users immediately see an interactive page."""
 
-    return {
-        "name": "Companion Chatbot API",
-        "status": "ok",
-        "docs": "/docs",
-        "health": "/health",
-        "personas": "/personas",
-        "chat_ui": "/chat-ui",
-    }
+    return RedirectResponse(url="/chat-ui", status_code=307)
 
 
 @app.get("/favicon.ico")

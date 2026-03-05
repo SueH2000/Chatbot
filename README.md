@@ -111,7 +111,7 @@ This project now includes both routes, so these browser checks no longer show 40
 
 Useful URLs after startup:
 
-- `http://127.0.0.1:8000/` (API landing info)
+- `http://127.0.0.1:8000/` (auto-redirects to chat UI)
 - `http://127.0.0.1:8000/docs` (interactive Swagger UI)
 - `http://127.0.0.1:8000/health`
 - `http://127.0.0.1:8000/personas`
@@ -133,6 +133,16 @@ It provides:
 - direct send button that calls `POST /chat`
 
 Beginner note: this UI is intentionally small and uses plain HTML + JavaScript so you can learn the request flow before moving to React/Vue.
+
+
+
+### Quick usage after startup
+
+1. Open `http://127.0.0.1:8000/`
+2. It auto-redirects to `http://127.0.0.1:8000/chat-ui`
+3. Choose persona/mode, type your message, and click **Send**
+
+Beginner note: this removes confusion when users open root path and expect an interactive interface.
 
 ## Connect to your local Ollama (step-by-step)
 
