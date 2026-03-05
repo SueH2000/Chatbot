@@ -162,6 +162,8 @@ ollama pull llama3.1:8b
 export OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
+> If you are using GitHub Codespaces but Ollama is on your laptop, do **not** use `127.0.0.1` here. See the Codespaces architecture note below.
+
 5. Check app -> Ollama connection using this project endpoint:
 
 ```bash
@@ -280,6 +282,91 @@ curl http://127.0.0.1:8000/personas
 
 
 
+
+
+
+
+
+### Important architecture note: Codespaces app cannot directly reach your local Ollama
+
+If your FastAPI app runs in **GitHub Codespaces** but Ollama runs on **your own laptop**, this default URL will fail inside Codespaces:
+
+- `http://127.0.0.1:11434`
+
+Why: `127.0.0.1` in Codespaces means "the Codespace container itself", not your laptop.
+
+#### Option A (simplest): run Ollama in the same Codespace/container
+
+This avoids cross-network routing issues entirely.
+
+#### Option B: run the app locally with your local Ollama
+
+- Start app on your laptop
+- Keep `OLLAMA_BASE_URL=http://127.0.0.1:11434`
+
+#### Option C: expose local Ollama to a public/tunneled URL, then set `OLLAMA_BASE_URL`
+
+Example (conceptual):
+
+```bash
+# In Codespaces terminal
+export OLLAMA_BASE_URL="https://<your-tunnel-domain>"
+python -m uvicorn app:app --reload --port 8000
+```
+
+Then `GET /health/ollama` should succeed if tunnel + firewall rules are correct.
+
+Beginner note: this is a networking boundary issue (where services run), not a bug in persona logic or prompt code.
+
+### Troubleshooting: `11434` works but `8000/health/ollama` cannot connect
+
+If this happens:
+
+- `curl http://127.0.0.1:11434/api/tags` returns `200` (Ollama is healthy)
+- but `curl http://127.0.0.1:8000/health/ollama` says cannot connect
+
+then usually **FastAPI is not running** (or running on another host/port).
+
+Check in this order (PowerShell):
+
+```powershell
+# 1) Is FastAPI process listening on 8000?
+netstat -ano | findstr :8000
+```
+
+If no output, start the app:
+
+```powershell
+# In your project folder
+python -m uvicorn app:app --reload --port 8000
+```
+
+Then open a new terminal and test:
+
+```powershell
+# Use real curl executable to avoid PowerShell alias confusion
+curl.exe http://127.0.0.1:8000/health
+curl.exe http://127.0.0.1:8000/health/ollama
+```
+
+If `python -m uvicorn ...` fails with missing module:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m uvicorn app:app --reload --port 8000
+```
+
+If port 8000 is occupied, run another port:
+
+```powershell
+python -m uvicorn app:app --reload --port 8010
+curl.exe http://127.0.0.1:8010/health
+curl.exe http://127.0.0.1:8010/health/ollama
+```
+
+Beginner note: your logs already show Ollama works. The failing part is only the FastAPI service reachability.
 
 ### Troubleshooting: PowerShell says `-X` / `-H` / `-d` parameter not found
 
