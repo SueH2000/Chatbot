@@ -34,7 +34,7 @@ class SourceStructureTests(unittest.TestCase):
 
     def test_chat_ui_template_exists(self) -> None:
         self.assertIn('CHAT_UI_HTML', self.src)
-        self.assertIn('Choose a mode, enter your message', self.src)
+        self.assertIn('Choose mode, type message', self.src)
 
 
 if __name__ == '__main__':

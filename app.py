@@ -83,23 +83,29 @@ CHAT_UI_HTML = """
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Companion Chatbot UI</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 820px; margin: 24px auto; padding: 0 12px; }
+    body { font-family: Arial, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 12px; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     label { font-weight: 600; font-size: 14px; }
     input, select, textarea, button { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
-    textarea { min-height: 100px; }
+    textarea { min-height: 90px; }
     .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-top: 12px; }
-    .result { white-space: pre-wrap; line-height: 1.45; }
+    #status { font-size: 13px; color: #555; margin-top: 8px; }
+    #chatlog { min-height: 180px; max-height: 360px; overflow-y: auto; background: #fafafa; }
+    .msg { margin: 8px 0; padding: 8px; border-radius: 8px; white-space: pre-wrap; }
+    .user { background: #e7f1ff; }
+    .bot { background: #eef8e8; }
   </style>
 </head>
 <body>
   <h2>Companion Chatbot (Beginner UI)</h2>
-  <p>Choose a mode, enter your message, then click <b>Send</b>.</p>
+  <p>Choose mode, type message, press <b>Send</b>. This page works like a simple chatbot.</p>
 
   <div class="grid">
     <div>
       <label>Persona / Mode</label>
-      <select id="persona"></select>
+      <select id="persona">
+        <option value="friend">friend (default)</option>
+      </select>
     </div>
     <div>
       <label>Companion Gender</label>
@@ -137,16 +143,34 @@ CHAT_UI_HTML = """
     <textarea id="message" placeholder="Type how you feel..."></textarea>
 
     <button id="send_btn">Send</button>
+    <div id="status">Loading personas...</div>
   </div>
 
-  <div class="card result" id="result">Waiting for your message...</div>
+  <div class="card" id="chatlog"></div>
 
 <script>
-async function loadPersonas() {
-  const res = await fetch('/personas');
-  const data = await res.json();
+const FALLBACK_PERSONAS = [
+  'friend', 'friend_family', 'romantic_partner', 'boyfriend', 'girlfriend',
+  'intimate_friend', 'pet_companion', 'dog_companion'
+];
+
+function setStatus(text) {
+  document.getElementById('status').textContent = text;
+}
+
+function appendMessage(role, text) {
+  const chatlog = document.getElementById('chatlog');
+  const node = document.createElement('div');
+  node.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  node.textContent = (role === 'user' ? 'You: ' : 'Companion: ') + text;
+  chatlog.appendChild(node);
+  chatlog.scrollTop = chatlog.scrollHeight;
+}
+
+function renderPersonas(list) {
   const select = document.getElementById('persona');
-  data.personas.forEach((p) => {
+  select.innerHTML = '';
+  list.forEach((p) => {
     const opt = document.createElement('option');
     opt.value = p;
     opt.textContent = p;
@@ -154,44 +178,71 @@ async function loadPersonas() {
   });
 }
 
+async function loadPersonas() {
+  try {
+    const res = await fetch('/personas');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const personas = Array.isArray(data.personas) && data.personas.length ? data.personas : FALLBACK_PERSONAS;
+    renderPersonas(personas);
+    setStatus('Personas loaded. Ready to chat.');
+  } catch (err) {
+    renderPersonas(FALLBACK_PERSONAS);
+    setStatus('Could not load /personas, using fallback list. You can still chat.');
+  }
+}
+
 async function sendChat() {
+  const messageBox = document.getElementById('message');
+  const message = messageBox.value.trim();
+  if (!message) {
+    setStatus('Please type a message first.');
+    return;
+  }
+
   const payload = {
     user_id: document.getElementById('user_id').value,
-    persona: document.getElementById('persona').value,
+    persona: document.getElementById('persona').value || 'friend',
     companion_gender: document.getElementById('companion_gender').value,
     comfort_level: Number(document.getElementById('comfort_level').value),
     response_length: document.getElementById('response_length').value,
     character_seed: document.getElementById('character_seed').value,
-    message: document.getElementById('message').value,
+    message,
     model: document.getElementById('model').value,
   };
 
-  const result = document.getElementById('result');
-  result.textContent = 'Loading...';
+  appendMessage('user', message);
+  setStatus('Sending...');
 
-  const res = await fetch('/chat', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(payload),
-  });
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
 
-  const data = await res.json();
-  if (!res.ok) {
-    result.textContent = 'Error: ' + JSON.stringify(data, null, 2);
-    return;
+    if (!res.ok) {
+      appendMessage('bot', 'Error: ' + JSON.stringify(data));
+      setStatus('Request failed. Check Ollama and API logs.');
+      return;
+    }
+
+    let botText = data.reply + '
+
+Follow-up: ' + data.follow_up_question;
+    if (data.safety_note) {
+      botText += '
+
+Safety: ' + data.safety_note;
+    }
+    appendMessage('bot', botText);
+    setStatus('Done.');
+    messageBox.value = '';
+  } catch (err) {
+    appendMessage('bot', 'Network error: ' + err);
+    setStatus('Network error when calling /chat.');
   }
-
-  result.textContent =
-    'Reply:
-' + data.reply + '
-
-' +
-    'Follow-up question:
-' + data.follow_up_question + '
-
-' +
-    'Safety note:
-' + (data.safety_note || '(none)');
 }
 
 document.getElementById('send_btn').addEventListener('click', sendChat);
@@ -200,6 +251,7 @@ loadPersonas();
 </body>
 </html>
 """
+
 
 class ChatRequest(BaseModel):
     user_id: str = Field(..., description="Unique user id for memory separation")

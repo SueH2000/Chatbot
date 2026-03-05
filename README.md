@@ -131,8 +131,13 @@ It provides:
 - message input box
 - comfort/length controls
 - direct send button that calls `POST /chat`
+- chat-style message history (your messages + companion replies)
+- persona fallback list if `/personas` fails to load
 
 Beginner note: this UI is intentionally small and uses plain HTML + JavaScript so you can learn the request flow before moving to React/Vue.
+
+If persona dropdown is empty, this UI now auto-falls back to built-in persona options and shows a status hint, so you can still chat while debugging backend connectivity.
+
 
 
 
